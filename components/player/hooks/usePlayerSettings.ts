@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { settingsStore } from '@/lib/store/settings-store';
+import { settingsStore, AdFilterMode } from '@/lib/store/settings-store';
 
 /**
  * Hook to access and update player settings from the settings store
@@ -17,6 +17,11 @@ export function usePlayerSettings() {
             autoSkipOutro: stored.autoSkipOutro,
             skipOutroSeconds: stored.skipOutroSeconds,
             showModeIndicator: stored.showModeIndicator,
+            adFilter: stored.adFilter,
+            adFilterMode: stored.adFilterMode,
+            adKeywords: stored.adKeywords,
+            fullscreenType: stored.fullscreenType,
+            proxyMode: stored.proxyMode,
         };
     });
 
@@ -31,6 +36,11 @@ export function usePlayerSettings() {
                 autoSkipOutro: stored.autoSkipOutro,
                 skipOutroSeconds: stored.skipOutroSeconds,
                 showModeIndicator: stored.showModeIndicator,
+                adFilter: stored.adFilter,
+                adFilterMode: stored.adFilterMode,
+                adKeywords: stored.adKeywords,
+                fullscreenType: stored.fullscreenType,
+                proxyMode: stored.proxyMode,
             });
         });
         return unsubscribe;
@@ -71,6 +81,26 @@ export function usePlayerSettings() {
         updateSetting('showModeIndicator', value);
     }, [updateSetting]);
 
+    const setAdFilter = useCallback((value: boolean) => {
+        updateSetting('adFilter', value);
+    }, [updateSetting]);
+
+    const setAdFilterMode = useCallback((value: AdFilterMode) => {
+        updateSetting('adFilterMode', value);
+    }, [updateSetting]);
+
+    const setAdKeywords = useCallback((value: string[]) => {
+        updateSetting('adKeywords', value);
+    }, [updateSetting]);
+
+    const setFullscreenType = useCallback((value: 'native' | 'window') => {
+        updateSetting('fullscreenType', value);
+    }, [updateSetting]);
+
+    const setProxyMode = useCallback((value: 'retry' | 'none' | 'always') => {
+        updateSetting('proxyMode', value);
+    }, [updateSetting]);
+
     return {
         ...settings,
         setAutoNextEpisode,
@@ -79,5 +109,10 @@ export function usePlayerSettings() {
         setAutoSkipOutro,
         setSkipOutroSeconds,
         setShowModeIndicator,
+        setAdFilter,
+        setAdFilterMode,
+        setAdKeywords,
+        setFullscreenType,
+        setProxyMode,
     };
 }

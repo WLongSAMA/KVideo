@@ -18,6 +18,8 @@ export type SortOption =
   | 'name-desc';
 
 export type SearchDisplayMode = 'normal' | 'grouped';
+export type AdFilterMode = 'off' | 'keyword' | 'heuristic' | 'aggressive';
+export type ProxyMode = 'retry' | 'none' | 'always';
 
 export interface AppSettings {
   sources: VideoSource[];
@@ -35,10 +37,16 @@ export interface AppSettings {
   autoSkipOutro: boolean;
   skipOutroSeconds: number;
   showModeIndicator: boolean; // Show '直连模式'/'代理模式' badge on player
+  adFilter: boolean; // Filter ad tags from m3u8 (legacy, kept for compatibility)
+  adFilterMode: AdFilterMode; // 'off' | 'keyword' | 'heuristic' | 'aggressive'
+  adKeywords: string[]; // Dynamically loaded ad keywords
   // Search & Display settings
   realtimeLatency: boolean; // Enable real-time latency ping updates
   searchDisplayMode: SearchDisplayMode; // 'normal' = individual cards, 'grouped' = group same-name videos
   episodeReverseOrder: boolean; // Persist episode list reverse state
+  fullscreenType: 'native' | 'window'; // Fullscreen mode preference
+  proxyMode: ProxyMode; // Proxy behavior: 'retry' | 'none' | 'always'
+  rememberScrollPosition: boolean; // Remember scroll position when navigating back or refreshing
 }
 
 import { exportSettings, importSettings, SEARCH_HISTORY_KEY, WATCH_HISTORY_KEY } from './settings-helpers';
@@ -87,51 +95,46 @@ function getEnvSubscriptions(customValue?: string): SourceSubscription[] {
 // Debugging helper
 // console.log("Environment Subscriptions:", getEnvSubscriptions());
 
+// Shared default settings factory to avoid code duplication
+function getDefaultAppSettings(): AppSettings {
+  return {
+    sources: getDefaultSources(),
+    premiumSources: getDefaultPremiumSources(),
+    subscriptions: getEnvSubscriptions(),
+    sortBy: 'default',
+    searchHistory: true,
+    watchHistory: true,
+    passwordAccess: false,
+    accessPasswords: [],
+    autoNextEpisode: true,
+    autoSkipIntro: false,
+    skipIntroSeconds: 0,
+    autoSkipOutro: false,
+    skipOutroSeconds: 0,
+    showModeIndicator: false,
+    adFilter: false,
+    adFilterMode: 'heuristic',
+    adKeywords: [],
+    realtimeLatency: false,
+    searchDisplayMode: 'normal',
+    episodeReverseOrder: false,
+    fullscreenType: 'native',
+    proxyMode: 'retry',
+    rememberScrollPosition: true,
+  };
+}
+
 export const settingsStore = {
   getSettings(): AppSettings {
+    // SSR: Return defaults
     if (typeof window === 'undefined') {
-      return {
-        sources: getDefaultSources(),
-        premiumSources: getDefaultPremiumSources(),
-        subscriptions: getEnvSubscriptions(),
-        sortBy: 'default',
-        searchHistory: true,
-        watchHistory: true,
-        passwordAccess: false,
-        accessPasswords: [],
-        autoNextEpisode: true,
-        autoSkipIntro: false,
-        skipIntroSeconds: 0,
-        autoSkipOutro: false,
-        skipOutroSeconds: 0,
-        showModeIndicator: false,
-        realtimeLatency: false,
-        searchDisplayMode: 'normal',
-        episodeReverseOrder: false,
-      };
+      return getDefaultAppSettings();
     }
 
+    // Client: No stored settings, return defaults
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (!stored) {
-      return {
-        sources: getDefaultSources(),
-        premiumSources: getDefaultPremiumSources(),
-        subscriptions: getEnvSubscriptions(),
-        sortBy: 'default',
-        searchHistory: true,
-        watchHistory: true,
-        passwordAccess: false,
-        accessPasswords: [],
-        autoNextEpisode: true,
-        autoSkipIntro: false,
-        skipIntroSeconds: 0,
-        autoSkipOutro: false,
-        skipOutroSeconds: 0,
-        showModeIndicator: false,
-        realtimeLatency: false,
-        searchDisplayMode: 'normal',
-        episodeReverseOrder: false,
-      };
+      return getDefaultAppSettings();
     }
 
     try {
@@ -187,33 +190,19 @@ export const settingsStore = {
         autoSkipOutro: parsed.autoSkipOutro !== undefined ? parsed.autoSkipOutro : false,
         skipOutroSeconds: typeof parsed.skipOutroSeconds === 'number' ? parsed.skipOutroSeconds : 0,
         showModeIndicator: parsed.showModeIndicator !== undefined ? parsed.showModeIndicator : false,
+        adFilter: parsed.adFilter !== undefined ? parsed.adFilter : false,
+        adFilterMode: parsed.adFilterMode || 'heuristic',
+        adKeywords: Array.isArray(parsed.adKeywords) ? parsed.adKeywords : [],
         realtimeLatency: parsed.realtimeLatency !== undefined ? parsed.realtimeLatency : false,
         searchDisplayMode: parsed.searchDisplayMode === 'grouped' ? 'grouped' : 'normal',
         episodeReverseOrder: parsed.episodeReverseOrder !== undefined ? parsed.episodeReverseOrder : false,
+        fullscreenType: parsed.fullscreenType === 'window' ? 'window' : 'native',
+        proxyMode: (parsed.proxyMode === 'retry' || parsed.proxyMode === 'none' || parsed.proxyMode === 'always') ? parsed.proxyMode : 'retry',
+        rememberScrollPosition: parsed.rememberScrollPosition !== undefined ? parsed.rememberScrollPosition : true,
       };
     } catch {
       // Even if localStorage fails, we should return defaults + ENV subscriptions
-      const envSubscriptions = getEnvSubscriptions();
-
-      return {
-        sources: getDefaultSources(),
-        premiumSources: getDefaultPremiumSources(),
-        subscriptions: envSubscriptions,
-        sortBy: 'default',
-        searchHistory: true,
-        watchHistory: true,
-        passwordAccess: false,
-        accessPasswords: [],
-        autoNextEpisode: true,
-        autoSkipIntro: false,
-        skipIntroSeconds: 0,
-        autoSkipOutro: false,
-        skipOutroSeconds: 0,
-        showModeIndicator: false,
-        realtimeLatency: false,
-        searchDisplayMode: 'normal',
-        episodeReverseOrder: false,
-      };
+      return getDefaultAppSettings();
     }
   },
 
